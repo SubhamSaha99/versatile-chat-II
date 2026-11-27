@@ -46,14 +46,16 @@ func (r *AuthRepository) CreateUser(
 	ctx context.Context,
 	user *User,
 ) error {
-	if user.ID.IsZero() {
-		user.ID = bson.NewObjectID()
-	}
-
-	_, err := r.collection.InsertOne(ctx, user)
+	result, err := r.collection.InsertOne(ctx, user)
 	if err != nil {
 		return fmt.Errorf("insert user: %w", err)
 	}
+
+	id, ok := result.InsertedID.(bson.ObjectID)
+	if !ok {
+		return fmt.Errorf("insert user: unexpected inserted ID type %T", result.InsertedID)
+	}
+	user.ID = id
 
 	return nil
 }

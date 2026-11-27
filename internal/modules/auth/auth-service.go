@@ -35,18 +35,18 @@ func NewAuthService(
 func (s *AuthService) Register(
 	ctx context.Context,
 	req RegisterDTO,
-) (*AuthResponseDTO, error) {
+) (string, error) {
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	username := strings.TrimSpace(req.Username)
 
 	// Check for existing user
 	existingUser, err := s.repository.FindByEmail(ctx, email)
 	if err == nil && existingUser != nil {
-		return nil, errors.New("email already registered")
+		return "", errors.New("email already registered")
 	}
 
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, fmt.Errorf("check existing user: %w", err)
+		return "", fmt.Errorf("check existing user: %w", err)
 	}
 
 	// Hashing password
@@ -55,7 +55,7 @@ func (s *AuthService) Register(
 		bcrypt.DefaultCost,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return "", fmt.Errorf("hash password: %w", err)
 	}
 
 	now := time.Now().UTC()
@@ -71,12 +71,12 @@ func (s *AuthService) Register(
 	// Creating new user
 	if err := s.repository.CreateUser(ctx, user); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			return nil, errors.New("email or username already exists")
+			return "", errors.New("email or username already exists")
 		}
-		return nil, fmt.Errorf("create user: %w", err)
+		return "", fmt.Errorf("create user: %w", err)
 	}
 
-	return s.buildAuthResponse(user)
+	return user.ID.Hex(), nil
 }
 
 // user login
